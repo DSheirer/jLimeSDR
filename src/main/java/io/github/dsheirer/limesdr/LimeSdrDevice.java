@@ -211,7 +211,10 @@ public final class LimeSdrDevice implements AutoCloseable {
         return call("LMS_GetAntenna", Native.GET_ANTENNA, direction.isTx(), channel(channel));
     }
 
-    /** Returns the recommended frequency range of an antenna port in Hz. */
+    /**
+     * Returns the recommended frequency range of an antenna port in Hz. Ports without one, such as None and the
+     * loopback ports, throw {@link LimeSdrException}.
+     */
     public Range antennaBandwidth(Direction direction, int channel, int index) throws LimeSdrException {
         return readRange("LMS_GetAntennaBW", Native.GET_ANTENNA_BW, direction.isTx(), channel(channel),
             (long) index(index));

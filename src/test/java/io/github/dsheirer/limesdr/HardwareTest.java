@@ -65,6 +65,37 @@ class HardwareTest {
     }
 
     @Test
+    void antennaPortsWithoutARangeAreAnError() throws LimeSdrException {
+        // Upstream threw std::out_of_range through the C API for these, which
+        // aborted the JVM; native/patches/0002 makes it an error.
+        try (LimeSdrDevice device = LimeSdr.open()) {
+            List<String> antennas = device.antennas(Direction.RX, 0);
+            for (int index = 0; index < antennas.size(); index++) {
+                int port = index;
+                String name = antennas.get(port);
+                if (name.equals("None") || name.startsWith("LB")) {
+                    assertThrows(LimeSdrException.class, () -> device.antennaBandwidth(Direction.RX, 0, port), name);
+                } else {
+                    assertTrue(device.antennaBandwidth(Direction.RX, 0, port).max() > 0, name);
+                }
+            }
+        }
+    }
+
+    @Test
+    void openingADeviceThatIsInUseIsAnError() throws LimeSdrException {
+        // Upstream let the USB connection's exception through LMS_Open, which
+        // aborted the JVM; native/patches/0002 makes it an error.
+        try (LimeSdrDevice device = LimeSdr.open()) {
+            assertThrows(LimeSdrException.class, LimeSdr::open);
+            assertFalse(device.deviceInfo().deviceName().isBlank());
+        }
+        try (LimeSdrDevice device = LimeSdr.open()) {
+            assertFalse(device.isClosed());
+        }
+    }
+
+    @Test
     void appliesSettings() throws LimeSdrException {
         try (LimeSdrDevice device = LimeSdr.open()) {
             configure(device);

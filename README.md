@@ -106,6 +106,21 @@ programming are also available. Every function in `LimeSuite.h` has a binding.
   changes the combined gain that `gain()` reports.
 - Stream status counters are kept per device, not per stream, and reset on
   each `status()` call.
+- LimeSuiteNG sizes each receive transfer for about 100 µs of samples, which
+  leaves only 1-2 ms of transfers in flight on USB devices. Its receive thread
+  asks for realtime priority, which an ordinary user doesn't get on Linux, so
+  a busy system loses packets. jLimeSDR patches `LMS_SetupStream` (see
+  [`native/patches`](native/patches)) so that a `throughputVsLatency` above 0.5
+  selects the largest transfers the device allows: 16 packets per transfer on
+  USB, about 8.7 ms in flight at 40 MS/s.
+  `StreamConfig.withThroughputVsLatency(1)` turns this on; the default, 0.5,
+  keeps upstream's behavior. Lost samples show up as gaps in
+  `SampleBuffer.timestamp()`, which counts samples.
+- A C++ exception that escapes a LimeSuiteNG C function aborts the whole JVM.
+  jLimeSDR patches the two cases found so far into errors: `LMS_Open` on a
+  device that another program has open, and `LMS_GetAntennaBW` on a port
+  without a recommended range (None and the loopback ports). Both now throw
+  `LimeSdrException`.
 
 ### Logging
 

@@ -1,0 +1,81 @@
+diff --git a/src/legacyapi/LMS_APIWrapper.cpp b/src/legacyapi/LMS_APIWrapper.cpp
+index a8edf9a..af96a5c 100644
+--- a/src/legacyapi/LMS_APIWrapper.cpp
++++ b/src/legacyapi/LMS_APIWrapper.cpp
+@@ -219,24 +219,37 @@ API_EXPORT int CALL_CONV LMS_Open(lms_device_t** device, const lms_info_str_t in
+         return -1;
+     }
+ 
+-    std::vector<lime::DeviceHandle> handles = lime::DeviceRegistry::enumerate();
+-    for (auto& handle : handles)
++    // jLimeSDR: an exception that leaves this C function aborts the process. Opening a device that another
++    // program has open throws one from the USB connection, so report it as an error instead.
++    try
+     {
+-        if (info == nullptr || std::strcmp(handle.Serialize().c_str(), info) == 0)
++        std::vector<lime::DeviceHandle> handles = lime::DeviceRegistry::enumerate();
++        for (auto& handle : handles)
+         {
+-            auto dev = lime::DeviceRegistry::makeDevice(handle);
+-
+-            if (dev == nullptr)
++            if (info == nullptr || std::strcmp(handle.Serialize().c_str(), info) == 0)
+             {
+-                lime::error("Unable to open device."s);
+-                return -1;
+-            }
++                auto dev = lime::DeviceRegistry::makeDevice(handle);
++
++                if (dev == nullptr)
++                {
++                    lime::error("Unable to open device."s);
++                    return -1;
++                }
+ 
+-            auto apiDevice = new LMS_APIDevice{ dev };
++                auto apiDevice = new LMS_APIDevice{ dev };
+ 
+-            *device = apiDevice;
+-            return LMS_SUCCESS;
++                *device = apiDevice;
++                return LMS_SUCCESS;
++            }
+         }
++    } catch (const std::exception& e)
++    {
++        lime::error("Unable to open device: "s + e.what());
++        return -1;
++    } catch (...)
++    {
++        lime::error("Unable to open device."s);
++        return -1;
+     }
+ 
+     lime::error("Specified device could not be found."s);
+@@ -478,9 +491,25 @@ API_EXPORT int CALL_CONV LMS_GetAntennaBW(lms_device_t* device, bool dir_tx, siz
+         return -1;
+     const std::string& pathName = pathNames.at(path);
+ 
++    // jLimeSDR: ports without a recommended range, such as None and the loopback ports, made the at() below throw
++    // std::out_of_range through this C function, which aborts the process. Report them as an error instead.
++    const auto& antennaRanges = apiDevice->GetRFSOCDescriptor().antennaRange;
++    const auto directionRanges = antennaRanges.find(direction);
++    if (directionRanges == antennaRanges.end())
++    {
++        lime::error("No frequency range for antenna "s + pathName);
++        return -1;
++    }
++    const auto pathRange = directionRanges->second.find(pathName);
++    if (pathRange == directionRanges->second.end())
++    {
++        lime::error("No frequency range for antenna "s + pathName);
++        return -1;
++    }
++
+     if (range)
+     {
+-        *range = RangeToLMS_Range(apiDevice->GetRFSOCDescriptor().antennaRange.at(direction).at(pathName));
++        *range = RangeToLMS_Range(pathRange->second);
+     }
+ 
+     return 0;
