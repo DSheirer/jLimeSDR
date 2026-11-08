@@ -18,16 +18,11 @@ Microsystems.
 
 ## libusb (Linux and macOS)
 
-Source: <https://github.com/libusb/libusb>
-
-Licensed under the GNU Lesser General Public License version 2.1 or later. See
-`META-INF/licenses/libusb-COPYING`. The exact version in each jar is recorded in
-`jlimesdr/native/<platform>/build-info.properties`, and `native/versions.env` in
-this repository records the release it was built from.
-
-libusb is shipped as a separate shared library so it can be replaced: point the
-`jlimesdr.library.path` system property at a directory containing your own
-build along with `liblimesuiteng-legacyapi`.
+jLimeSDR does not contain libusb. It is supplied at runtime by
+[jlibusb](https://github.com/DSheirer/jlibusb), which ships it under the GNU
+Lesser General Public License version 2.1 or later and documents how to
+replace it. jLimeSDR is built against the libusb headers of the release that
+`native/versions.env` records.
 
 ## Cypress FX3 SDK CyAPI (Windows x86-64 only)
 

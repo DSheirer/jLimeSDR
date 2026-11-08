@@ -4,10 +4,11 @@
 #
 # Usage: native/build-unix.sh [limesuiteng-git-ref]
 #
-# The ref may be a branch, a tag or a full commit hash. libusb stays a separate
-# shared library because it is LGPL-2.1: keeping it out of LimeSuiteNG lets
-# users replace it. It is built without udev so the Linux binaries do not need
-# libudev at runtime. See jlimesdr.cmake for how LimeSuiteNG is linked.
+# The ref may be a branch, a tag or a full commit hash. libusb is built only to
+# link against: at runtime LimeSuiteNG uses the libusb that jlibusb supplies,
+# loaded from the same directory, so the jar does not contain libusb. It is
+# built without udev, as jlibusb's is. See jlimesdr.cmake for how LimeSuiteNG
+# is linked.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -120,7 +121,6 @@ cmake --build build-limesuiteng --target limesuiteng-legacyapi --parallel "$JOBS
 
 echo "=== packaging $PLATFORM ==="
 if [ "$OS" = linux ]; then
-    cp -L "$USB_PREFIX/lib/libusb-1.0.so.0" "$OUT/libusb-1.0.so.0"
     cp -L "$(find build-limesuiteng -name liblimesuiteng-legacyapi.so | head -n 1)" "$OUT/liblimesuiteng-legacyapi.so"
     chmod 755 "$OUT"/*
     # Only glibc and libusb may remain as dependencies.
@@ -131,15 +131,14 @@ if [ "$OS" = linux ]; then
     fi
     EXPORTED="$(nm -D --defined-only "$OUT/liblimesuiteng-legacyapi.so" | awk '$2 ~ /^[TDBVWRiu]$/ {print $3}')"
 else
-    cp -L "$USB_PREFIX/lib/libusb-1.0.0.dylib" "$OUT/libusb-1.0.0.dylib"
     cp -L "$(find build-limesuiteng -name liblimesuiteng-legacyapi.dylib | head -n 1)" "$OUT/liblimesuiteng-legacyapi.dylib"
     chmod 755 "$OUT"/*
-    # Point the library at the bundled libusb, not the absolute build path, and
-    # re-sign because install_name_tool invalidates the ad-hoc signatures.
-    install_name_tool -id @rpath/libusb-1.0.0.dylib "$OUT/libusb-1.0.0.dylib"
+    # Point the library at jlibusb's libusb, which is extracted next to it, not
+    # the absolute build path, and re-sign because install_name_tool
+    # invalidates the ad-hoc signature.
     install_name_tool -id @rpath/liblimesuiteng-legacyapi.dylib "$OUT/liblimesuiteng-legacyapi.dylib"
     install_name_tool -change "$USB_LIB" @loader_path/libusb-1.0.0.dylib "$OUT/liblimesuiteng-legacyapi.dylib"
-    codesign -f -s - "$OUT"/*.dylib
+    codesign -f -s - "$OUT/liblimesuiteng-legacyapi.dylib"
     otool -L "$OUT/liblimesuiteng-legacyapi.dylib"
     if otool -L "$OUT/liblimesuiteng-legacyapi.dylib" | grep -qF "$WORK"; then
         echo "liblimesuiteng-legacyapi still refers to the build directory" >&2
@@ -161,7 +160,6 @@ if ! "$ROOT/native/check-bindings.sh" "$HEADER"; then
 fi
 
 cp limesuiteng/COPYING "$ROOT/dist/native/licenses/limesuiteng-LICENSE"
-cp "libusb-$LIBUSB_VERSION/COPYING" "$ROOT/dist/native/licenses/libusb-COPYING"
 cat > "$OUT/build-info.properties" <<INFO
 limesuiteng.ref=$REF
 limesuiteng.commit=$UPSTREAM_COMMIT
