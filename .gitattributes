@@ -4,3 +4,5 @@
 gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+# Patches must keep LF line endings to apply to LimeSuiteNG on Windows
+native/patches/*.patch text eol=lf

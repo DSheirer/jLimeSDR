@@ -128,6 +128,9 @@ class LibraryTest {
     void validatesSettings() {
         assertThrows(IllegalArgumentException.class, () -> StreamConfig.of(-1, SampleFormat.I16));
         assertThrows(IllegalArgumentException.class, () -> StreamConfig.of(0, SampleFormat.I16).withFifoSize(0));
+        assertEquals(1f, StreamConfig.of(0, SampleFormat.I16).withThroughputVsLatency(1).throughputVsLatency());
+        assertThrows(IllegalArgumentException.class,
+            () -> StreamConfig.of(0, SampleFormat.I16).withThroughputVsLatency(1.5f));
         assertEquals(15, Lms7Parameter.G_LNA_RFE.maxValue());
         assertEquals(31, Lms7Parameter.G_PGA_RBB.maxValue());
         assertThrows(IllegalArgumentException.class, () -> new Lms7Parameter(0x10000, 0, 0, 0, "X"));

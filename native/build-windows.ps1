@@ -41,6 +41,20 @@ git init --quiet limesuiteng | Out-Null
 git -C limesuiteng fetch --quiet --depth 1 $Versions.LIMESUITENG_REPOSITORY $Ref | Out-Null
 git -c advice.detachedHead=false -C limesuiteng checkout --quiet FETCH_HEAD | Out-Null
 $Commit = (git -C limesuiteng rev-parse HEAD).Trim()
+# jLimeSDR's changes to LimeSuiteNG. A patch that doesn't apply fails a build of
+# the pinned commit, but only warns when tracking upstream develop.
+foreach ($Patch in Get-ChildItem "$Root\native\patches\*.patch" -ErrorAction SilentlyContinue) {
+    git -C limesuiteng apply --check $Patch.FullName 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        git -C limesuiteng apply $Patch.FullName
+        if ($LASTEXITCODE -ne 0) { throw "Failed to apply $($Patch.Name)" }
+        Write-Host "Applied $($Patch.Name)"
+    } elseif ($Ref -eq $Versions.LIMESUITENG_REF) {
+        throw "$($Patch.Name) doesn't apply to $Ref"
+    } else {
+        Write-Host "::warning::$($Patch.Name) doesn't apply to $Ref"
+    }
+}
 $Project = [regex]::Match((Get-Content -Raw 'limesuiteng\CMakeLists.txt'), '(?m)^project\([^)]*?\bVERSION\s+([0-9.]+)')
 if (-not $Project.Success) { throw "No project version in CMakeLists.txt at $Ref" }
 $UpstreamVersion = $Project.Groups[1].Value

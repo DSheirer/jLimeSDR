@@ -1,0 +1,23 @@
+diff --git a/src/legacyapi/LMS_APIWrapper.cpp b/src/legacyapi/LMS_APIWrapper.cpp
+index 40a069f..a8edf9a 100644
+--- a/src/legacyapi/LMS_APIWrapper.cpp
++++ b/src/legacyapi/LMS_APIWrapper.cpp
+@@ -1,3 +1,4 @@
++#include <limits>
+ #include "CommonFunctions.h"
+ #include "lime/LimeSuite.h"
+ #include "limesuiteng/limesuiteng.hpp"
+@@ -718,7 +719,12 @@ API_EXPORT int CALL_CONV LMS_SetupStream(lms_device_t* device, lms_stream_t* str
+         break;
+     }
+ 
+-    // stream->throughputVsLatency can be ignored, it's automatic now
++    // jLimeSDR: above 0.5, favor throughput with the largest transfers that the DMA buffers allow, which TRXLooper
++    // clamps to its maximum. LimeSuiteNG sizes receive transfers for about 100 us of samples, which leaves only about
++    // 1-2 ms of transfers in flight on USB devices, so a receive thread without realtime priority loses packets.
++    // 0.5 and below keep the automatic transfer size (0). Set both ways, since config starts from the last stream's.
++    auto& transfer = stream->isTx ? config.extraConfig.tx : config.extraConfig.rx;
++    transfer.packetsInBatch = stream->throughputVsLatency > 0.5f ? std::numeric_limits<uint16_t>::max() : 0;
+     apiDevice->stream.reset();
+     apiDevice->stream = apiDevice->device->StreamCreate(config, apiDevice->moduleIndex);
+     if (!apiDevice->stream)

@@ -8,8 +8,9 @@ package io.github.dsheirer.limesdr;
  * @param fifoSize size of the stream's buffer in samples
  * @param linkFormat format on the USB or PCIe link
  * @param alignPhase align channel phases in MIMO mode, {@code LMS_ALIGN_CH_PHASE}; receive only
- * @param throughputVsLatency 0 for lowest latency to 1 for highest throughput;
- *     LimeSuiteNG currently ignores it
+ * @param throughputVsLatency above 0.5, the stream uses the largest USB or PCIe transfers that the device allows,
+ *     for receiving without lost packets when the system is busy; 0.5 and below keep LimeSuiteNG's automatic
+ *     transfer size, about 100 microseconds of samples
  */
 public record StreamConfig(int channel, SampleFormat format, int fifoSize, LinkFormat linkFormat, boolean alignPhase,
         float throughputVsLatency) {
@@ -45,6 +46,14 @@ public record StreamConfig(int channel, SampleFormat format, int fifoSize, LinkF
     /** Returns a copy with another link format. */
     public StreamConfig withLinkFormat(LinkFormat link) {
         return new StreamConfig(channel, format, fifoSize, link, alignPhase, throughputVsLatency);
+    }
+
+    /**
+     * Returns a copy with another throughput versus latency setting, such as 1 for receiving without lost packets
+     * when the system is busy.
+     */
+    public StreamConfig withThroughputVsLatency(float value) {
+        return new StreamConfig(channel, format, fifoSize, linkFormat, alignPhase, value);
     }
 
     /** Returns a copy that does or does not align channel phases. */

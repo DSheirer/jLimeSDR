@@ -64,6 +64,20 @@ git init --quiet limesuiteng
 git -C limesuiteng fetch --quiet --depth 1 "$LIMESUITENG_REPOSITORY" "$REF"
 git -c advice.detachedHead=false -C limesuiteng checkout --quiet FETCH_HEAD
 UPSTREAM_COMMIT="$(git -C limesuiteng rev-parse HEAD)"
+# jLimeSDR's changes to LimeSuiteNG. A patch that doesn't apply fails a build of
+# the pinned commit, but only warns when tracking upstream develop.
+for PATCH in "$ROOT"/native/patches/*.patch; do
+    [ -e "$PATCH" ] || continue
+    if git -C limesuiteng apply --check "$PATCH" 2>/dev/null; then
+        git -C limesuiteng apply "$PATCH"
+        echo "Applied $(basename "$PATCH")"
+    elif [ "$REF" = "$LIMESUITENG_REF" ]; then
+        echo "$(basename "$PATCH") doesn't apply to $REF" >&2
+        exit 1
+    else
+        echo "::warning::$(basename "$PATCH") doesn't apply to $REF"
+    fi
+done
 HEADER=limesuiteng/src/legacyapi/include/lime/LimeSuite.h
 UPSTREAM_VERSION="$(sed -n '/^project(/,/)/s/^[[:space:]]*VERSION \([0-9.]*\)[[:space:]]*$/\1/p' \
     limesuiteng/CMakeLists.txt | head -n 1)"
