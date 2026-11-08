@@ -3,8 +3,10 @@
 Java bindings for [LimeSuiteNG](https://github.com/myriadrf/LimeSuiteNG), the
 driver for LimeSDR software-defined radios, built on the Java Foreign Function
 & Memory API. They call LimeSuiteNG's C API (`lime/LimeSuite.h`, the `LMS_*`
-functions) directly, without SoapySDR. The jar contains the native libraries,
-so there is nothing else to install.
+functions) directly, without SoapySDR. The jar contains LimeSuiteNG for every
+supported platform and needs one other jar,
+[jlibusb](https://github.com/DSheirer/jlibusb), which supplies libusb. There is
+nothing to install.
 
 | OS | x86-64 | aarch64 |
 |---------|----|----|
@@ -17,7 +19,9 @@ Requires Java 23 or later.
 ## Getting it
 
 Download `jlimesdr-<version>.jar` from
-[Releases](https://github.com/DSheirer/jLimeSDR/releases). The rolling
+[Releases](https://github.com/DSheirer/jLimeSDR/releases), and the
+`jlibusb-<version>.jar` it was built with from
+[jlibusb releases](https://github.com/DSheirer/jlibusb/releases). The rolling
 [`nightly`](https://github.com/DSheirer/jLimeSDR/releases/tag/nightly)
 pre-release tracks `main` of this project and `develop` of upstream.
 
@@ -135,10 +139,10 @@ Java prints a warning, which future versions will turn into an error, unless
 you allow native access:
 
 ```
-java --enable-native-access=ALL-UNNAMED -cp app.jar:jlimesdr.jar my.App
+java --enable-native-access=ALL-UNNAMED -cp app.jar:jlimesdr.jar:jlibusb.jar my.App
 ```
 
-On the module path, use `--enable-native-access=io.github.dsheirer.limesdr`. In
+On the module path, use `--enable-native-access=io.github.dsheirer.limesdr,io.github.dsheirer.libusb`. In
 your own executable jar, add `Enable-Native-Access: ALL-UNNAMED` to the manifest.
 
 ### Device access
@@ -155,10 +159,12 @@ your own executable jar, add `Enable-Native-Access: ALL-UNNAMED` to the manifest
 
 ### Native library location
 
-Libraries are extracted to the temporary directory at startup. Set
-`-Djlimesdr.library.path=<dir>` to load them from a directory instead: for
-example, to supply your own build of libusb, or if the temporary directory is
-mounted `noexec`.
+LimeSuiteNG is extracted at startup into the private temporary directory that
+jlibusb extracts libusb to, so the process holds one copy of libusb shared with
+any other library built on jlibusb. Set `-Djlimesdr.library.path=<dir>` to load
+LimeSuiteNG from a directory instead, and `-Djlibusb.library.path=<dir>` to
+supply your own build of libusb. If the temporary directory is mounted
+`noexec`, point `-Djava.io.tmpdir` elsewhere.
 
 ## Building
 
@@ -180,8 +186,9 @@ LimeSuiteNG is built with its core as a static library, and
 [`native/jlimesdr.cmake`](native/jlimesdr.cmake) links it into one shared
 library, `limesuiteng-legacyapi`, which exports only the `LMS_*` functions.
 Keeping LimeSuiteNG's C++ interfaces inside one library lets the C++ runtime be
-linked statically on Linux and Windows. libusb stays a separate library on
-Linux and macOS; Windows uses the Cypress and FTDI libraries instead, linked in.
+linked statically on Linux and Windows. On Linux and macOS it uses the libusb
+that jlibusb supplies; Windows uses the Cypress and FTDI libraries instead,
+linked in.
 
 ## Releases
 
